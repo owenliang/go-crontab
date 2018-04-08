@@ -31,12 +31,14 @@ func main()  {
 	stmt, _ := tx.PrepareContext(timeoutCtx, "SELECT * FROM `cron_lock` WHERE name=? FOR UPDATE")
 	rows, err := stmt.QueryContext(timeoutCtx, "JOB_LOCK")
 
+	defer rows.Close()
+	defer stmt.Close()
+
 	for rows.Next() {
 		var id int64
 		var name string
 		rows.Scan(&id, &name)
-
-		fmt.Println("here", id, name)
+		fmt.Println( id, name)
 	}
 
 	for true {
