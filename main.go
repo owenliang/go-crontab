@@ -1,47 +1,66 @@
 package main
 
 import (
-	"github.com/gorhill/cronexpr"
-	_ "github.com/go-sql-driver/mysql"
-	"time"
+	"github.com/owenliang/go-crontab/conf"
+	"flag"
+	"runtime"
 	"fmt"
-	"database/sql"
 	"os"
-	"context"
+	"github.com/owenliang/go-crontab/mysql"
+	"github.com/owenliang/go-crontab/session"
+	"time"
 )
 
-func main()  {
-	// cronexpr
-	now := time.Now()
-	triggerTime := cronexpr.MustParse("* * * *  *").Next(now)
-	fmt.Println(now, triggerTime)
+var (
+	config string
+)
 
-	// mysql
-	db, err := sql.Open("mysql", "root:baidu@123@tcp(localhost:3306)/go-crontab")
-	if err != nil {
-		fmt.Println(err)
-		os.Exit(1)
-	}
-	db.SetMaxIdleConns(5)
-	db.SetConnMaxLifetime(0)
+func initCmd() {
+	flag.StringVar(&config, "config", "./go-crontab.json", "path to go-crontab.json")
+	flag.Parse()
+}
 
-	// timeoutCtx, _ := context.WithTimeout(context.TODO(), time.Duration(1 * time.Second))
-	timeoutCtx := context.TODO()
-	tx, _ := db.BeginTx(timeoutCtx, nil)
-	stmt, _ := tx.PrepareContext(timeoutCtx, "SELECT * FROM `cron_lock` WHERE name=? FOR UPDATE")
-	rows, err := stmt.QueryContext(timeoutCtx, "JOB_LOCK")
+func initEnv() {
+	runtime.GOMAXPROCS(runtime.NumCPU())
+}
 
-	defer rows.Close()
-	defer stmt.Close()
+func main() {
+	var (
+		err error
+	)
 
-	for rows.Next() {
-		var id int64
-		var name string
-		rows.Scan(&id, &name)
-		fmt.Println( id, name)
+	// 初始化程序环境
+	initEnv()
+
+	// 解析命令行
+	initCmd()
+
+	// 加载配置
+	if err = conf.LoadCronConf(config); err != nil {
+		goto ERROR
 	}
 
-	for true {
-		time.Sleep(time.Duration(time.Second * 1))
+	// 初始化数据库连接池
+	if err = mysql.InitMysql(); err != nil {
+		goto ERROR
 	}
+
+	// 初始化session心跳线程
+	if err = session.InitSession(); err != nil {
+		goto ERROR
+	}
+
+	// 初始化session健康检查
+	if err = session.InitDoctor(); err != nil {
+		goto ERROR
+	}
+
+	for {
+		time.Sleep(time.Second * 1)
+	}
+	return
+
+ERROR:
+	fmt.Fprintln(os.Stderr, err)
+	os.Exit(1)
 }

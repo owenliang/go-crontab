@@ -1,0 +1,5 @@
+package job
+
+const JOB_STATUS_WAIT = 0
+const JOB_STATUS_PREPARE = 1
+const JOB_STATUS_EXECUTING = 2

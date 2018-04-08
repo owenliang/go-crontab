@@ -1,0 +1,7 @@
+{
+  "Dsn": "root:baidu@123@tcp(localhost:3306)/go-crontab",
+  "NodeName": "cron-01",
+  "PingInterval": 3,
+  "KillMyself": 24,
+  "KickOther": 48
+}
